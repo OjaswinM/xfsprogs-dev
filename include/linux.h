@@ -37,19 +37,14 @@
 #endif
 #include <unistd.h>
 #include <assert.h>
+#include <linux/magic.h> /* FS super block magic numbers */
 
 static __inline__ int xfsctl(const char *path, int fd, int cmd, void *p)
 {
 	return ioctl(fd, cmd, p);
 }
 
-/*
- * platform_test_xfs_*() implies that xfsctl will succeed on the file;
- * on Linux, at least, special files don't get xfs file ops,
- * so return 0 for those
- */
-
-static __inline__ int platform_test_xfs_fd(int fd)
+static __inline__ int platform_test_fs_fd(int fd, long type)
 {
 	struct statfs statfsbuf;
 	struct stat statbuf;
@@ -60,7 +55,22 @@ static __inline__ int platform_test_xfs_fd(int fd)
 		return 0;
 	if (!S_ISREG(statbuf.st_mode) && !S_ISDIR(statbuf.st_mode))
 		return 0;
-	return (statfsbuf.f_type == 0x58465342);	/* XFSB */
+	return (statfsbuf.f_type == type);
+}
+
+/*
+ * platform_test_xfs_*() implies that xfsctl will succeed on the file;
+ * on Linux, at least, special files don't get xfs file ops,
+ * so return 0 for those
+ */
+static __inline__ int platform_test_xfs_fd(int fd)
+{
+	return platform_test_fs_fd(fd, XFS_SUPER_MAGIC);
+}
+
+static __inline__ int platform_test_ext4_fd(int fd)
+{
+	return platform_test_fs_fd(fd, EXT4_SUPER_MAGIC);
 }
 
 static __inline__ int platform_test_xfs_path(const char *path)
