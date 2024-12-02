@@ -97,14 +97,14 @@ print_file_info(void)
 		file->flags & IO_TMPFILE ? _(",tmpfile") : "");
 }
 
-static void
-print_xfs_info(int verbose)
+static void print_extended_info(int verbose)
 {
-	struct dioattr	dio;
-	struct fsxattr	fsx, fsxa;
+	struct dioattr dio;
+	struct fsxattr fsx, fsxa;
+	bool is_xfs_fd = platform_test_xfs_fd(file->fd);
 
-	if ((xfsctl(file->name, file->fd, FS_IOC_FSGETXATTR, &fsx)) < 0 ||
-	    (xfsctl(file->name, file->fd, XFS_IOC_FSGETXATTRA, &fsxa)) < 0) {
+	if ((ioctl(file->fd, FS_IOC_FSGETXATTR, &fsx)) < 0 ||
+		(is_xfs_fd && (xfsctl(file->name, file->fd, XFS_IOC_FSGETXATTRA, &fsxa) < 0))) {
 		perror("FS_IOC_FSGETXATTR");
 	} else {
 		printf(_("fsxattr.xflags = 0x%x "), fsx.fsx_xflags);
@@ -113,14 +113,18 @@ print_xfs_info(int verbose)
 		printf(_("fsxattr.extsize = %u\n"), fsx.fsx_extsize);
 		printf(_("fsxattr.cowextsize = %u\n"), fsx.fsx_cowextsize);
 		printf(_("fsxattr.nextents = %u\n"), fsx.fsx_nextents);
-		printf(_("fsxattr.naextents = %u\n"), fsxa.fsx_nextents);
+		if (is_xfs_fd)
+			printf(_("fsxattr.naextents = %u\n"), fsxa.fsx_nextents);
 	}
-	if ((xfsctl(file->name, file->fd, XFS_IOC_DIOINFO, &dio)) < 0) {
-		perror("XFS_IOC_DIOINFO");
-	} else {
-		printf(_("dioattr.mem = 0x%x\n"), dio.d_mem);
-		printf(_("dioattr.miniosz = %u\n"), dio.d_miniosz);
-		printf(_("dioattr.maxiosz = %u\n"), dio.d_maxiosz);
+
+	if (is_xfs_fd) {
+		if ((xfsctl(file->name, file->fd, XFS_IOC_DIOINFO, &dio)) < 0) {
+			perror("XFS_IOC_DIOINFO");
+		} else {
+			printf(_("dioattr.mem = 0x%x\n"), dio.d_mem);
+			printf(_("dioattr.miniosz = %u\n"), dio.d_miniosz);
+			printf(_("dioattr.maxiosz = %u\n"), dio.d_maxiosz);
+		}
 	}
 }
 
@@ -167,10 +171,10 @@ stat_f(
 		printf(_("stat.ctime = %s"), ctime(&st.st_ctime));
 	}
 
-	if (file->flags & IO_FOREIGN)
+	if (file->flags & IO_FOREIGN && !platform_test_ext4_fd(file->fd))
 		return 0;
 
-	print_xfs_info(verbose);
+	print_extended_info(verbose);
 
 	return 0;
 }
@@ -440,10 +444,10 @@ statx_f(
 				ctime((time_t *)&stx.stx_btime.tv_sec));
 	}
 
-	if (file->flags & IO_FOREIGN)
+	if (file->flags & IO_FOREIGN && !platform_test_ext4_fd(file->fd))
 		return 0;
 
-	print_xfs_info(verbose);
+	print_extended_info(verbose);
 
 	return 0;
 }
