@@ -43,24 +43,30 @@ static __inline__ int xfsctl(const char *path, int fd, int cmd, void *p)
 	return ioctl(fd, cmd, p);
 }
 
+static __inline__ int platform_test_fs_fd(int fd, long type) {
+        struct statfs statfsbuf;
+        struct stat statbuf;
+
+        if (fstatfs(fd, &statfsbuf) < 0)
+          return 0;
+        if (fstat(fd, &statbuf) < 0)
+          return 0;
+        if (!S_ISREG(statbuf.st_mode) && !S_ISDIR(statbuf.st_mode))
+          return 0;
+        return (statfsbuf.f_type == type);
+}
+
 /*
  * platform_test_xfs_*() implies that xfsctl will succeed on the file;
  * on Linux, at least, special files don't get xfs file ops,
  * so return 0 for those
  */
+static __inline__ int platform_test_xfs_fd(int fd) {
+        return platform_test_fs_fd(fd, 0x58465342); /* XFSB */
+}
 
-static __inline__ int platform_test_xfs_fd(int fd)
-{
-	struct statfs statfsbuf;
-	struct stat statbuf;
-
-	if (fstatfs(fd, &statfsbuf) < 0)
-		return 0;
-	if (fstat(fd, &statbuf) < 0)
-		return 0;
-	if (!S_ISREG(statbuf.st_mode) && !S_ISDIR(statbuf.st_mode))
-		return 0;
-	return (statfsbuf.f_type == 0x58465342);	/* XFSB */
+static __inline__ int platform_test_ext4_fd(int fd) {
+        return platform_test_fs_fd(fd, 0xef53); /* EXT4 magic number */
 }
 
 static __inline__ int platform_test_xfs_path(const char *path)
