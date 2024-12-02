@@ -97,15 +97,15 @@ print_file_info(void)
 		file->flags & IO_TMPFILE ? _(",tmpfile") : "");
 }
 
-static void
-print_xfs_info(int verbose)
+static void print_extended_info(int verbose)
 {
-	struct dioattr	dio;
-	struct fsxattr	fsx, fsxa;
+	struct dioattr dio;
+	struct fsxattr fsx, fsxa;
+	bool is_xfs_fd = platform_test_xfs_fd(file->fd);
 
-	if ((xfsctl(file->name, file->fd, FS_IOC_FSGETXATTR, &fsx)) < 0 ||
-	    (xfsctl(file->name, file->fd, XFS_IOC_FSGETXATTRA, &fsxa)) < 0) {
-		perror("FS_IOC_FSGETXATTR");
+	if (ioctl(file->fd, FS_IOC_FSGETXATTR, &fsx) < 0) {
+		if (is_xfs_fd || (errno != EOPNOTSUPP && errno != ENOTTY))
+			perror("FS_IOC_GETXATTR");
 	} else {
 		printf(_("fsxattr.xflags = 0x%x "), fsx.fsx_xflags);
 		printxattr(fsx.fsx_xflags, verbose, 0, file->name, 1, 1);
@@ -113,15 +113,23 @@ print_xfs_info(int verbose)
 		printf(_("fsxattr.extsize = %u\n"), fsx.fsx_extsize);
 		printf(_("fsxattr.cowextsize = %u\n"), fsx.fsx_cowextsize);
 		printf(_("fsxattr.nextents = %u\n"), fsx.fsx_nextents);
-		printf(_("fsxattr.naextents = %u\n"), fsxa.fsx_nextents);
 	}
-	if ((xfsctl(file->name, file->fd, XFS_IOC_DIOINFO, &dio)) < 0) {
-		perror("XFS_IOC_DIOINFO");
+
+	if (ioctl(file->fd, XFS_IOC_FSGETXATTRA, &fsxa) < 0) {
+		if (is_xfs_fd || (errno != EOPNOTSUPP && errno != ENOTTY))
+			perror("XFS_IOC_FSGETXATTRA");
 	} else {
-		printf(_("dioattr.mem = 0x%x\n"), dio.d_mem);
-		printf(_("dioattr.miniosz = %u\n"), dio.d_miniosz);
-		printf(_("dioattr.maxiosz = %u\n"), dio.d_maxiosz);
-	}
+		printf(_("fsxattr.naextents = %u\n"), fsxa.fsx_nextents);
+        }
+
+        if (ioctl(file->fd, XFS_IOC_DIOINFO, &dio) < 0) {
+                if (is_xfs_fd || (errno != EOPNOTSUPP && errno != ENOTTY))
+			perror("XFS_IOC_DIOINFO");
+        } else {
+                printf(_("dioattr.mem = 0x%x\n"), dio.d_mem);
+                printf(_("dioattr.miniosz = %u\n"), dio.d_miniosz);
+                printf(_("dioattr.maxiosz = %u\n"), dio.d_maxiosz);
+        }
 }
 
 int
@@ -170,7 +178,7 @@ stat_f(
 	if (file->flags & IO_FOREIGN)
 		return 0;
 
-	print_xfs_info(verbose);
+	print_extended_info(verbose);
 
 	return 0;
 }
@@ -443,7 +451,7 @@ statx_f(
 	if (file->flags & IO_FOREIGN)
 		return 0;
 
-	print_xfs_info(verbose);
+	print_extended_info(verbose);
 
 	return 0;
 }
