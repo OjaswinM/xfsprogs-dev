@@ -997,7 +997,7 @@ open_init(void)
 	extsize_cmd.args = _("[-D | -R] [extsize]");
 	extsize_cmd.argmin = 0;
 	extsize_cmd.argmax = -1;
-	extsize_cmd.flags = CMD_NOMAP_OK;
+	extsize_cmd.flags = CMD_NOMAP_OK | CMD_FOREIGN_OK;
 	extsize_cmd.oneline =
 		_("get/set preferred extent size (in bytes) for the open file");
 	extsize_cmd.help = extsize_help;
