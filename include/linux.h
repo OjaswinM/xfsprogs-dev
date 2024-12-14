@@ -37,6 +37,7 @@
 #endif
 #include <unistd.h>
 #include <assert.h>
+#include <linux/magic.h> /* super block magic numbers */
 
 static __inline__ int xfsctl(const char *path, int fd, int cmd, void *p)
 {
@@ -60,7 +61,7 @@ static __inline__ int platform_test_xfs_fd(int fd)
 		return 0;
 	if (!S_ISREG(statbuf.st_mode) && !S_ISDIR(statbuf.st_mode))
 		return 0;
-	return (statfsbuf.f_type == 0x58465342);	/* XFSB */
+	return statfsbuf.f_type == XFS_SUPER_MAGIC;
 }
 
 static __inline__ int platform_test_xfs_path(const char *path)
